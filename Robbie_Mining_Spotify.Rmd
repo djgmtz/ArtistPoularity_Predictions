@@ -75,9 +75,9 @@ combinedData2 <- combinedData2[colnames(combinedData2) != "artist_uri"]
 
 # dopping genre beccause of issues with list data type, may want to add back later 
 combinedData2 <- combinedData2[colnames(combinedData2) != "artist_genres"]
-combinedData2 <- filter(combinedData2, track_popularity >= 1)
-combinedData2 <- filter(combinedData2, artist_popularity >= 1)
-combinedData3 <- filter(combinedData2, artist_num_followers >= 1000000)
+#combinedData2 <- filter(combinedData2, track_popularity >= 1)
+#combinedData2 <- filter(combinedData2, artist_popularity >= 1)
+#combinedData3 <- filter(combinedData2, artist_num_followers >= 1000000)
 
 
 ```
@@ -86,8 +86,12 @@ Let's view the final dataset
 
 ```{r}
 
-head(combinedData3)
+head(combinedData2)
 
+```
+
+```{r}
+str(combinedData2)
 ```
 
 
@@ -96,14 +100,14 @@ Splitting into training and test data
 ```{r}
 
 #75% of the sample size
-smp_size <- floor(0.75 * nrow(combinedData3))
+smp_size <- floor(0.75 * nrow(combinedData2))
 
 #set the seed to make partition reproducible
 set.seed(123)
-train_ind <- sample(seq_len(nrow(combinedData3)), size = smp_size)
+train_ind <- sample(seq_len(nrow(combinedData2)), size = smp_size)
 
-train <- combinedData3[train_ind, ]
-test <- combinedData3[-train_ind, ]
+train <- combinedData2[train_ind, ]
+test <- combinedData2[-train_ind, ]
 ```
 
 
@@ -153,14 +157,12 @@ Plotting the number of followers an artist has versus popularity
 
 ```{r}
 
-plot(combinedData3$artist_num_followers, combinedData3$artist_popularity, xlab = "Number of Followers", ylab = "Artist Popularity")
+plot(combinedData2$artist_num_followers, combinedData2$artist_popularity, xlab = "Number of Followers", ylab = "Artist Popularity")
 
 ```
 Artist popularity versus track popularity 
 ```{r}
-plot(combinedData3$artist_popularity, combinedData3$track_popularity, xlab = "Artist Popularity", ylab = "Track Popularity")
-
-
+plot(combinedData2$artist_popularity, combinedData2$track_popularity, xlab = "Artist Popularity", ylab = "Track Popularity")
 ```
 
 
@@ -174,13 +176,13 @@ library(tidyverse)
 
 #Plotting artist popularity versus number of followers 
 
-combinedData3 %>%  ggplot(aes(x=combinedData3$artist_popularity, y=combinedData3$artist_num_followers)) + geom_point()+ labs(x='Artist Popularity',y="Number of Followers (in Millions)") -> artist_plt
+combinedData2 %>%  ggplot(aes(x=combinedData2$artist_popularity, y=combinedData2$artist_num_followers)) + geom_point()+ labs(x='Artist Popularity',y="Number of Followers (in Millions)") -> artist_plt
 artist_plt
 
 ```
 ```{r}
 
-combinedData3 %>%  ggplot(aes(x=combinedData3$artist_popularity, y=combinedData3$track_popularity)) + geom_point()+ labs(x='Artist Popularity',y="Track Popularity") -> track_plt
+combinedData2 %>%  ggplot(aes(x=combinedData2$artist_popularity, y=combinedData2$track_popularity)) + geom_point()+ labs(x='Artist Popularity',y="Track Popularity") -> track_plt
 track_plt
 
 ```
