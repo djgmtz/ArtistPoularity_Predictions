@@ -11,10 +11,9 @@ knitr::opts_chunk$set(echo = TRUE)
 
 Minning the Spotify data via API 
 
-```{r eval=FALSE, include=FALSE}
+```{r}
 
-# devtools::install_github('charlie86/spotifyr')
-
+devtools::install_github('charlie86/spotifyr')
 library(spotifyr)
 
 #set system enviroment variables for client ID and Secret ID
@@ -23,7 +22,7 @@ Sys.setenv(SPOTIFY_CLIENT_SECRET = '44727842431e4f3cb1909db30515aa70')
 
 access_token <- get_spotify_access_token()
 
-# pull in artist inormations such as genere, num followers, and popularity
+#pull in artist metrics such as genere, num followers, and popularity
 for (i in 1:nrow(spotify_artists)) {
   if (i == 1){
     numFollowers <- get_artists(as.character(spotify_artists$dbname[i]))
@@ -37,7 +36,7 @@ for (i in 1:nrow(spotify_artists)) {
   cat(paste0('\nFinished: ', i, ". Starting next loop on " , i+1, sep =' '))
 }
 
-# pull in album audio features 
+#pull in album audio features 
 for (i in 1:nrow(spotify_artists)) {
   if (i == 1){
     final_data <- get_artist_audio_features(as.character(spotify_artists$dbname[i]))
@@ -52,25 +51,14 @@ for (i in 1:nrow(spotify_artists)) {
 }
 ```
 
-Joining data sets and cleaning 
+Create a training and test set 
 
 ```{r}
-library(plyr)
+library(dplyr)
 
-# combining data sets 
-combinedData <- join(final_data, numFollowers, by='artist_name', type='left', match='all')
+#drop na rows 
 
-
-```
-
-For purposes of this project we only care about artists with more than 1M followers, will filter out less popular artists. 
-
-```{r}
-
-# Lets filter out artists base don number of followers
-combinedData2 <-na.omit(combinedData)
-# removing duplicate artist_uri column 
-
+<<<<<<< HEAD
 combinedData2 <- combinedData2[colnames(combinedData2) != "artist_uri"]
 
 # dopping genre beccause of issues with list data type, may want to add back later 
@@ -108,27 +96,41 @@ train_ind <- sample(seq_len(nrow(combinedData2)), size = smp_size)
 
 train <- combinedData2[train_ind, ]
 test <- combinedData2[-train_ind, ]
+=======
+final_data2 <-na.omit(final_data)
+
+#75% of the sample size
+smp_size <- floor(0.75 * nrow(final_data2))
+
+#set the seed to make partition reproducible
+set.seed(123)
+train_ind <- sample(seq_len(nrow(final_data2)), size = smp_size)
+
+train <- final_data2[train_ind, ]
+test <- final_data2[-train_ind, ]
+>>>>>>> parent of 1be2763... Add files via upload
 ```
-
-
 
 Building the regression model 
 
-
 ```{r}
 library(performanceEstimation)
-library(forecast)
+
 attach(train)
 
-# trying linear model based on track popularity 
-linearModel <- lm(artist_popularity ~ loudness + danceability + energy + acousticness +liveness + instrumentalness + track_popularity + is_collaboration + key + artist_num_followers + valence, data = train)
+#multiple linear regression model
+linearModel <- lm(track_popularity + loudness + danceability + energy + acousticness +liveness + instrumentalness, data = train)
 
-# tried step wise regression, currently not working
-linearModel_step <- step(lm(artist_popularity ~ loudness + danceability + energy + acousticness +liveness + instrumentalness + track_popularity + is_collaboration + key + artist_num_followers + valence, data = train))
+linearPred <- predict(linearModel, newdata = test)
+lmModelAccuracyAdjusted <- accuracy(test$artist_popularity, linearPred)
 
+#create dataset for Multiple Linear Regression
+lmPred <- data.frame(linearPred)
+lmPred$actual <- test$artist_popularity
 
 ```
    
+<<<<<<< HEAD
 Let's look at the results of lm regression: 
 
 ```{r}
@@ -163,11 +165,16 @@ plot(combinedData2$artist_num_followers, combinedData2$artist_popularity, xlab =
 Artist popularity versus track popularity 
 ```{r}
 plot(combinedData2$artist_popularity, combinedData2$track_popularity, xlab = "Artist Popularity", ylab = "Track Popularity")
+=======
+
+
+>>>>>>> parent of 1be2763... Add files via upload
 ```
 
 
 
 
+<<<<<<< HEAD
 Artist versus number of followers  
 
 ```{r}
@@ -197,3 +204,5 @@ track_plt
 ```
 
 
+=======
+>>>>>>> parent of 1be2763... Add files via upload
