@@ -1,0 +1,266 @@
+---
+title: "Robbie_Spotify_Minning"
+author: "R Freeman"
+date: "8/18/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Scrape top 200 songs from Spotify US charts 
+
+```{r}
+#packages
+
+library(rvest)
+library(tidyverse)
+library(magrittr)
+library(scales)
+library(knitr)
+library(lubridate)
+library(readr)
+library(plyr)
+library(dplyr)
+library(ggplot2)
+
+
+#  Scrapping the top 200 songs in the US for current date 
+url <- "https://spotifycharts.com/regional/us/daily/latest"
+
+SpotifyScrape <- function(x){
+ page <- x
+ rank <- page %>% read_html() %>% html_nodes('.chart-table-position') %>% html_text() %>% as.data.frame()
+ track <- page %>% read_html() %>% html_nodes('strong') %>% html_text() %>% as.data.frame()
+ artist <- page %>% read_html() %>% html_nodes('.chart-table-track span') %>% html_text() %>% as.data.frame()
+ streams <- page %>% read_html() %>% html_nodes('td.chart-table-streams') %>% html_text() %>% as.data.frame()
+ dates <- page %>% read_html() %>% html_nodes('.responsive-select~ .responsive-select+ .responsive-select .responsive-select-value') %>% html_text() %>% as.data.frame()
+
+#combining, naming, classifying our variables
+
+ chart <- cbind(rank, track, artist, streams, dates)
+ 
+ names(chart) <- c("Rank", "Track", "Artist", "Streams", "Date")
+ chart <- as.tibble(chart)
+ return(chart)
+}
+
+# storing values in a dataframe called spotify
+
+spotify <- map_df(url, SpotifyScrape)
+#cleaning
+
+spotify %<>% mutate(Artist = gsub("by ", "", Artist), 
+                    Streams = gsub(",", "", Streams), 
+                    Streams = as.numeric(Streams), 
+                    Date = as.Date(spotify$Date, "%m/%d/%Y"))
+
+```
+
+
+Bringing in features related to songs and followers using the Spotify API 
+
+
+```{r include=FALSE}
+
+# devtools::install_github('charlie86/spotifyr')
+
+library(spotifyr)
+
+#set system enviroment variables for client ID and Secret ID
+Sys.setenv(SPOTIFY_CLIENT_ID = '6b99e144dd674a0cba426bc94c823929')
+Sys.setenv(SPOTIFY_CLIENT_SECRET = '44727842431e4f3cb1909db30515aa70')
+
+access_token <- get_spotify_access_token()
+
+# pull in artist inormations such as genere, num followers, and popularity
+for (i in 1:nrow(spotify_artists)) {
+  if (i == 1){
+    numFollowers <- get_artists(as.character(spotify$Artist[i]))
+  }else {
+    tryCatch({
+      numFollowers <- rbind(numFollowers, get_artists(as.character(spotify$Artist[i])))},error=function(cond)
+      {
+        NA
+      })
+  }
+  cat(paste0('\nFinished: ', i, ". Starting next loop on " , i+1, sep =' '))
+}
+
+# pull in album audio features 
+for (i in 1:nrow(spotify_artists)) {
+  if (i == 1){
+    final_data <- get_artist_audio_features(as.character(spotify$Artist[i]))
+  }else {
+    tryCatch({
+      final_data <- rbind(final_data, get_artist_audio_features(as.character(spotify$Artist[i])))},error=function(cond)
+      {
+        NA
+      })
+  }
+  cat(paste0('\nFinished: ', i, ". Starting next loop on " , i+1, sep =' '))
+}  
+
+```
+
+Joining data sets and cleaning 
+
+```{r}
+
+# combining data sets 
+combinedData <- join(final_data, numFollowers, by='artist_name', type='left', match='all')
+
+```
+
+For purposes of this project we only care about artists with more than 1M followers, will filter out less popular artists. 
+
+```{r}
+
+# removing NA's 
+combinedData2 <-na.omit(combinedData)
+
+# Lets filter out artists base don number of followers
+ 
+combinedData2 <- combinedData2[colnames(combinedData2) != "artist_uri"]
+
+# dopping genre beccause of issues with list data type, may want to add back later 
+combinedData2 <- combinedData2[colnames(combinedData2) != "artist_genres"]
+combinedData2 <- filter(combinedData2, track_popularity >= 1)
+combinedData2 <- filter(combinedData2, artist_popularity >= 1)
+combinedData2 <- filter(combinedData2, artist_num_followers >= 1000000)
+# Removing duplicate tracks 
+combinedData3 <- distinct(combinedData2, combinedData2$track_name, .keep_all = TRUE)
+
+```
+
+Let's view the final dataset
+
+```{r}
+
+head(combinedData3)
+
+```
+
+### Vizualizing the data: 
+
+
+**Popularity by Artist**
+```{r}
+attach(combinedData3)
+# detach("package:plyr")
+
+top_artists <- combinedData3 %>%
+    group_by(artist_name)  %>%
+    summarise(artist_popularity = n()) %>%
+    filter(artist_popularity > 1) %>%
+    arrange(desc(artist_popularity))
+
+top_artists$artist_name <- factor(top_artists$artist_name, levels = top_artists$artist_name[order(top_artists$artist_popularity)]) # to visualise the list in descending order 
+
+ggplot(top_artists, aes(x = artist_name, y = artist_popularity)) +
+    geom_bar(stat = "identity",  fill = "tomato2", width = 0.6 ) + 
+    labs(title = "Top Artists by popularity", x = "Artists", y = "Spotify Popularity Ranking") +
+    theme(plot.title = element_text(size=14,hjust=-.3,face = "bold"), axis.title = element_text(size=12)) +
+    geom_text(aes(label= artist_popularity), hjust = 1, size = 2, color = 'white') +
+    coord_flip()
+
+```
+
+
+*Looking at the correlation between variables*
+```{r}
+
+library(corrplot)
+attach(combinedData3)
+data<- cbind(danceability,energy,loudness, speechiness, acousticness, instrumentalness, liveness, valence, tempo, duration_ms, time_signature, track_popularity, artist_popularity)
+mtCor <- cor(data)
+corrplot(mtCor, method = "ellipse", type = "upper", tl.srt = 45)
+```
+
+
+
+
+Splitting into training and test data 
+
+```{r}
+
+#75% of the sample size
+smp_size <- floor(0.75 * nrow(combinedData3))
+
+#set the seed to make partition reproducible
+set.seed(123)
+train_ind <- sample(seq_len(nrow(combinedData3)), size = smp_size)
+
+train <- combinedData3[train_ind, ]
+test <- combinedData3[-train_ind, ]
+```
+
+
+
+Building the regression model 
+
+
+```{r}
+library(performanceEstimation)
+library(forecast)
+attach(train)
+
+# trying linear model based on track popularity 
+linearModel <- lm(artist_popularity ~ loudness + danceability + energy + acousticness +liveness + instrumentalness + track_popularity + is_collaboration + key + artist_num_followers + valence, data = train)
+
+# tried step wise regression
+linearModel_step <- step(lm(artist_popularity ~ loudness + danceability + energy + acousticness +liveness + instrumentalness + track_popularity + is_collaboration + key + artist_num_followers + valence, data = train))
+
+
+```
+   
+Let's look at the results of lm regression: 
+
+```{r}
+summary(linearModel)
+summary(linearModel_step)
+
+```
+
+Additional Data Viz - can remove if we want 
+
+Plotting the number of followers an artist has versus popularity 
+
+```{r}
+
+plot(combinedData3$artist_num_followers, combinedData3$artist_popularity, xlab = "Number of Followers", ylab = "Artist Popularity")
+
+```
+Artist popularity versus track popularity 
+```{r}
+plot(combinedData3$artist_popularity, combinedData3$track_popularity, xlab = "Artist Popularity", ylab = "Track Popularity")
+
+```
+
+Artist versus number of followers  
+
+```{r}
+library(ggplot2)
+library(tidyverse)
+
+#Plotting artist popularity versus number of followers 
+
+combinedData3 %>%  ggplot(aes(x=combinedData3$artist_popularity, y=combinedData3$artist_num_followers)) + geom_point()+ labs(x='Artist Popularity',y="Number of Followers (in Millions)") -> artist_plt
+artist_plt
+
+```
+```{r}
+
+combinedData3 %>%  ggplot(aes(x=combinedData3$artist_popularity, y=combinedData3$track_popularity)) + geom_point()+ labs(x='Artist Popularity',y="Track Popularity") -> track_plt
+track_plt
+
+```
+
+
+
+
+
+
+
+
