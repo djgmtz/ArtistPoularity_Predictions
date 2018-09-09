@@ -75,7 +75,7 @@ Sys.setenv(SPOTIFY_CLIENT_SECRET = '44727842431e4f3cb1909db30515aa70')
 access_token <- get_spotify_access_token()
 
 # pull in artist inormations such as genere, num followers, and popularity
-for (i in 1:nrow(spotify_artists)) {
+for (i in 1:nrow(spotify)) {
   if (i == 1){
     numFollowers <- get_artists(as.character(spotify$Artist[i]))
   }else {
@@ -89,7 +89,7 @@ for (i in 1:nrow(spotify_artists)) {
 }
 
 # pull in album audio features 
-for (i in 1:nrow(spotify_artists)) {
+for (i in 1:nrow(spotify)) {
   if (i == 1){
     final_data <- get_artist_audio_features(as.character(spotify$Artist[i]))
   }else {
@@ -107,9 +107,8 @@ for (i in 1:nrow(spotify_artists)) {
 Joining data sets and cleaning 
 
 ```{r}
-
 # combining data sets 
-combinedData <- join(final_data, numFollowers, by='artist_name', type='left', match='all')
+combinedData <- join(final_data, numFollowers, by='artist_name', type = 'left',  match='all')
 
 ```
 
@@ -148,7 +147,7 @@ head(combinedData3)
 **Popularity by Artist**
 ```{r}
 attach(combinedData3)
-# detach("package:plyr")
+# detach("package:plyr") # use <- if you get plyr error 
 
 top_artists <- combinedData3 %>%
     group_by(artist_name)  %>%
@@ -250,6 +249,8 @@ combinedData3 %>%  ggplot(aes(x=combinedData3$artist_popularity, y=combinedData3
 artist_plt
 
 ```
+
+
 ```{r}
 
 combinedData3 %>%  ggplot(aes(x=combinedData3$artist_popularity, y=combinedData3$track_popularity)) + geom_point()+ labs(x='Artist Popularity',y="Track Popularity") -> track_plt
