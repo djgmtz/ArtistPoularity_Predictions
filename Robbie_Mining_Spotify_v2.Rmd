@@ -108,6 +108,7 @@ Joining data sets and cleaning
 
 ```{r}
 # combining data sets 
+
 combinedData <- join(final_data, numFollowers, by='artist_name', type = 'left',  match='all')
 
 ```
@@ -124,7 +125,7 @@ combinedData2 <-na.omit(combinedData)
 combinedData2 <- combinedData2[colnames(combinedData2) != "artist_uri"]
 
 # dopping genre beccause of issues with list data type, may want to add back later 
-combinedData2 <- combinedData2[colnames(combinedData2) != "artist_genres"]
+# combinedData2 <- combinedData2[colnames(combinedData2) != "artist_genres"]
 combinedData2 <- filter(combinedData2, track_popularity >= 1)
 combinedData2 <- filter(combinedData2, artist_popularity >= 1)
 combinedData2 <- filter(combinedData2, artist_num_followers >= 1000000)
@@ -147,7 +148,7 @@ head(combinedData3)
 **Popularity by Artist**
 ```{r}
 attach(combinedData3)
-# detach("package:plyr") # use <- if you get plyr error 
+detach("package:plyr") # use <- if you get plyr error 
 
 top_artists <- combinedData3 %>%
     group_by(artist_name)  %>%
@@ -200,7 +201,7 @@ test <- combinedData3[-train_ind, ]
 Building the regression model 
 
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 library(performanceEstimation)
 library(forecast)
 attach(train)
