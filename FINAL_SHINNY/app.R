@@ -10,13 +10,14 @@ library(dplyr)
 library(ggplot2)
 library(DT)
 
+load(file = "finaltrack_environment.Rdata")
 
 top_track_data<- as.list(trackOutput_analysis$track_name)
 # Define UI for application that draws a histogram
 ui <- fluidPage(
   
   # Application title
-  titlePanel("Track Popularity"),
+  titlePanel("Most streamed song (last 30 days)"),
   
   # Sidebar with a slider input for number of bins 
   sidebarLayout(
@@ -42,6 +43,7 @@ server <- function(input, output) {
   
   ###MOST STREAMED
   attach(track_monthoverview)
+  
   output$distPlot <- renderPlot({
     # generate bins based on input$bins from ui.
     
