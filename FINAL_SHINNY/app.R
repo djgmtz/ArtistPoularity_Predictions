@@ -22,7 +22,7 @@ ui <- fluidPage(
   # Sidebar with a slider input for number of bins 
   sidebarLayout(
     sidebarPanel(
-      selectInput("Select Track",label="Track Selected:",
+      selectInput("SelectTrack",label="Track Selected:",
                   choices= top_track_data
       ),
       selected=top_track_data[1]
