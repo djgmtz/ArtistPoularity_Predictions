@@ -1,0 +1,169 @@
+---
+title: "data_clean2"
+author: "Diego GM"
+date: "September 16, 2018"
+output: html_document
+---
+
+#ANALYSIS AT TRACK LEVEL
+##ANALYSIS OF THE TOP 10 TRACKS
+```{r eval=FALSE, include=FALSE}
+
+##GETTING INFO OF THE TOP 10 TRACKS (MOST STREAMED)
+
+for (i in 1:10) {
+  if (i == 1){
+    top_tracks <- get_tracks(track_monthoverview$track_name[i], track_monthoverview$Artist[i], return_closest_track = TRUE)
+  }else {
+    tryCatch({
+      top_tracks <- rbind(top_tracks, get_tracks(track_monthoverview$track_name[i], track_monthoverview$Artist[i],return_closest_track=TRUE))},error=function(cond)
+      {
+        NA
+      })
+  }
+  cat(paste0('\nFinished: ', i, ". Starting next loop on " , i+1, sep =' '))
+}
+
+View(top_tracks)
+
+#Extracting track URI FOR NEXT STEPS
+
+tracks_URI <- tibble(track_name=as.character(top_tracks$track_name), artist_name=as.character(top_tracks$artist_name), track_uri=as.character(top_tracks$track_uri))
+
+#str(tracks_URI)
+
+```
+
+```{r}
+
+#AUDIO FEATURES FOR TOP 10 TRACKS
+
+#Mutating data as needed for next function
+top10tracksURI<- data.frame(track_uri=as.character(tracks_URI$track_uri),track_name=as.character(tracks_URI$track_name),track_artist=as.character(tracks_URI$artist_name))
+
+for (i in 1:10) {
+  if (i == 1){
+    tracks_analysis<- get_track_audio_features(top10tracksURI[i])
+  }else {
+    tryCatch({
+      tracks_analysis <- rbind(tracks_analysis, get_track_audio_features(top10tracksURI[i]))},error=function(cond)
+      {
+        NA
+      })
+  }
+  cat(paste0('\nFinished: ', i, ". Starting next loop on " , i+1, sep =' '))
+}
+
+View(tracks_analysis)
+
+```
+
+```{r}
+trackOutput_analysis <- join(tracks_URI, tracks_analysis, by='track_uri', type = 'left',  match='all')
+
+final_trackOutput_analysis <- join(track_monthoverview, trackOutput_analysis, by='track_name', type = 'right',  match='all')
+
+
+drops <- c("artist_name")
+final_trackOutput_analysis<- final_trackOutput_analysis[ , !(names(final_trackOutput_analysis) %in% drops)]
+
+View(final_trackOutput_analysis)
+
+```
+
+***
+# ANALYSIS AT Artist Level
+##ANALYSIS OF THE TOP 10 ARTIST 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+##Getting artist names from overview
+artists<- artist_monthoverview$Artist
+View(artists)
+
+##Getting Spotify IDS etc
+
+library(spotifyr)
+
+
+#Diego Credentials
+Sys.setenv(SPOTIFY_CLIENT_ID = '6b8e19bd2af0448aa0476c469b222d46')
+Sys.setenv(SPOTIFY_CLIENT_SECRET = 'dd8b18877d4941febca6703986424129')
+
+#geting access token
+token <- get_spotify_access_token()
+
+#TOP 10 Artist info (MOST STREAMED)
+
+for (i in 1:10) {
+  if (i == 1){
+    numFollowers <- get_artists(as.character(artist_monthoverview$Artist[i],return_closest_artist = TRUE))
+  }else {
+    tryCatch({
+      numFollowers <- rbind(numFollowers, get_artists(as.character(artist_monthoverview$Artist[i],return_closest_artist = TRUE)))},error=function(cond)
+      {
+        NA
+      })
+  }
+  cat(paste0('\nFinished: ', i, ". Starting next loop on " , i+1, sep =' '))
+}
+
+## SORTING data by #followers and limit to 10
+numFollowers<- numFollowers[order(numFollowers$artist_num_followers,decreasing=TRUE),][1:10,]
+
+View(numFollowers)
+
+```
+
+#Artist audio features (Based on top tracks)
+```{r eval=FALSE, warning=TRUE, include=FALSE}
+
+
+##function get_album_data needs Artistname and album
+#get_album_data("Eminem", "Kamikaze")
+
+top10albumURI<- data.frame(artist_name=as.character(top_tracks$artist_name),album_name=as.character(top_tracks$album_name))
+
+top10albumURI$artist_name<- as.character(top10albumURI$artist_name)
+top10albumURI$album_name<- as.character(top10albumURI$album_name)
+
+for (i in 1:10) {
+  if (i == 1){
+    album_analysis<- get_album_data(top10albumURI$artist_name[i],top10albumURI$album_name[i])
+  }else {
+    tryCatch({
+      album_analysis <- rbind(album_analysis, get_album_data(top10albumURI$artist_name[i],top10albumURI$album_name[i]))},error=function(cond)
+      {
+        NA
+      })
+  }
+  cat(paste0('\nFinished: ', i, ". Starting next loop on " , i+1, sep =' '))
+}
+
+```
+
+```{r eval=FALSE, include=FALSE}
+
+#NOTE: NOT ALL ALBUMS HAVE ALBUM ANALYSIS, IT SEEMS RECENT SONGS DONT HAVE IT.
+
+## CREATING AVERAGE FINAL OUTPUT GROUPING BY ALBUM NAME
+
+final_albumanalysis<-album_analysis %>%
+  group_by(album_name) %>%
+  dplyr::summarise(
+    avgdanceability=mean(album_analysis$danceability),
+    avgenergy=mean(album_analysis$energy),
+    avgloudness=mean(album_analysis$loudness),
+    avgspeechiness=mean(album_analysis$speechiness),
+    avgacousticness=mean(album_analysis$acousticness),
+    avgainstrumentalness=mean(album_analysis$instrumentalness),
+    avgliveness=mean(album_analysis$liveness),
+    avgvalence=mean(album_analysis$valence),
+    avgtempo=mean(album_analysis$tempo)
+    )
+
+
+```
+
+
+
